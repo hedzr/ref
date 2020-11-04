@@ -99,9 +99,9 @@ func GetFieldTypes(obj interface{}, fieldNames ...string) (types []string, err e
 	return
 }
 
-// GetFieldTag1 returns the provided obj field tag value. obj can whether
+// GetFieldTag returns the provided obj field tag value. obj can whether
 // be a structure or pointer to structure.
-func GetFieldTag1(obj interface{}, tagKey string, fieldName string) (tagValue string, err error) {
+func GetFieldTag(obj interface{}, tagKey string, fieldName string) (tagValue string, err error) {
 	var tagValues []string
 	tagValues, err = GetFieldTags(obj, tagKey, fieldName)
 	if len(tagValues) > 0 {
@@ -194,6 +194,42 @@ func HasAnyField(obj interface{}, names ...string) (has bool) {
 // be a structure or pointer to structure.
 func Fields(obj interface{}) ([]string, error) {
 	return fields(obj, false)
+}
+
+// FieldsTagDeeper returns "flattened" fields (fields from anonymous
+// inner structs are treated as normal fields)
+func FieldsTagDeeper(obj interface{}, tagKey string, fn func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value, tagValue string)) error {
+	return fieldsTagDeeper(obj, tagKey, fn, true, nil)
+}
+
+func fieldsTagDeeper(obj interface{}, tagKey string, fn func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value, tagValue string), deep bool, owner *reflect.Value) (err error) {
+	if !hasAnyValidTypes(obj, reflect.Struct, reflect.Ptr) {
+		return errors.New("Cannot use GetField on a non-struct interface")
+	}
+
+	objValue := reflectValue(obj)
+	objType := objValue.Type()
+	fieldsCount := objType.NumField()
+
+	for i := 0; i < fieldsCount; i++ {
+		field := objType.Field(i)
+		if isExportableField(field) {
+			if deep && field.Anonymous {
+				fieldValue := objValue.Field(i)
+				fn(owner, field, fieldValue, field.Tag.Get(tagKey))
+				err1 := fieldsTagDeeper(fieldValue.Interface(), tagKey, fn, deep, &fieldValue)
+				if err1 != nil {
+					err = errors.New("cannot get fields in %s", field.Name).Attach(err)
+				}
+				// allFields = append(allFields, subFields...)
+			} else {
+				// allFields = append(allFields, field.Name)
+				fieldValue := objValue.Field(i)
+				fn(owner, field, fieldValue, field.Tag.Get(tagKey))
+			}
+		}
+	}
+	return
 }
 
 // FieldsDeeper returns "flattened" fields (fields from anonymous

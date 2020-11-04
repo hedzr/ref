@@ -91,13 +91,13 @@ func ExampleGetFieldType() {
 func ExampleGetFieldTag() {
 	s := MyStruct{}
 
-	tag, err := ref.GetFieldTag1(s, "matched", "FirstField")
+	tag, err := ref.GetFieldTag(s, "matched", "FirstField")
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(tag)
 
-	tag, err = ref.GetFieldTag1(s, "unmatched", "ThirdField")
+	tag, err = ref.GetFieldTag(s, "unmatched", "ThirdField")
 	if err != nil {
 		log.Fatal(err)
 	}

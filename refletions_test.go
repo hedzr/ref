@@ -229,11 +229,11 @@ func TestGetFieldTag(t *testing.T) {
 func testGetFieldTagOnStruct(t *testing.T) {
 	dummyStruct := testStruct{}
 
-	tag, err := GetFieldTag1(dummyStruct, "test", "Dummy")
+	tag, err := GetFieldTag(dummyStruct, "test", "Dummy")
 	assert.NoError(t, err)
 	assert.Equal(t, tag, "dummytag")
 
-	tag, err = GetFieldTag1(dummyStruct, "test", "Yummy")
+	tag, err = GetFieldTag(dummyStruct, "test", "Yummy")
 	assert.NoError(t, err)
 	assert.Equal(t, tag, "yummytag")
 }
@@ -241,11 +241,11 @@ func testGetFieldTagOnStruct(t *testing.T) {
 func testGetFieldTagOnStructPointer(t *testing.T) {
 	dummyStruct := &testStruct{}
 
-	tag, err := GetFieldTag1(dummyStruct, "test", "Dummy")
+	tag, err := GetFieldTag(dummyStruct, "test", "Dummy")
 	assert.NoError(t, err)
 	assert.Equal(t, tag, "dummytag")
 
-	tag, err = GetFieldTag1(dummyStruct, "test", "Yummy")
+	tag, err = GetFieldTag(dummyStruct, "test", "Yummy")
 	assert.NoError(t, err)
 	assert.Equal(t, tag, "yummytag")
 }
@@ -253,14 +253,14 @@ func testGetFieldTagOnStructPointer(t *testing.T) {
 func testGetFieldTagOnNonStruct(t *testing.T) {
 	dummy := "abc 123"
 
-	_, err := GetFieldTag1(dummy, "test", "Dummy")
+	_, err := GetFieldTag(dummy, "test", "Dummy")
 	assert.Error(t, err)
 }
 
 func testGetFieldTagNonExistingField(t *testing.T) {
 	dummyStruct := testStruct{}
 
-	_, err := GetFieldTag1(dummyStruct, "test", "obladioblada")
+	_, err := GetFieldTag(dummyStruct, "test", "obladioblada")
 	assert.Error(t, err)
 }
 
@@ -270,7 +270,7 @@ func testGetFieldTagUnexportedField(t *testing.T) {
 		Dummy:      "test",
 	}
 
-	_, err := GetFieldTag1(dummyStruct, "test", "unexported")
+	_, err := GetFieldTag(dummyStruct, "test", "unexported")
 	assert.Error(t, err)
 }
 
