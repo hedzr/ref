@@ -198,11 +198,11 @@ func Fields(obj interface{}) ([]string, error) {
 
 // FieldsDeeper returns "flattened" fields (fields from anonymous
 // inner structs are treated as normal fields)
-func FieldsDeeper(obj interface{}, fn func(owner, this reflect.Value)) error {
+func FieldsDeeper(obj interface{}, fn func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value)) error {
 	return fieldsDeeper(obj, fn, true, nil)
 }
 
-func fieldsDeeper(obj interface{}, fn func(owner, this reflect.Value), deep bool, owner *reflect.Value) (err error) {
+func fieldsDeeper(obj interface{}, fn func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value), deep bool, owner *reflect.Value) (err error) {
 	if !hasAnyValidTypes(obj, reflect.Struct, reflect.Ptr) {
 		return errors.New("Cannot use GetField on a non-struct interface")
 	}
@@ -216,7 +216,7 @@ func fieldsDeeper(obj interface{}, fn func(owner, this reflect.Value), deep bool
 		if isExportableField(field) {
 			if deep && field.Anonymous {
 				fieldValue := objValue.Field(i)
-				fn(*owner, fieldValue)
+				fn(owner, field, fieldValue)
 				err1 := fieldsDeeper(fieldValue.Interface(), fn, deep, &fieldValue)
 				if err1 != nil {
 					err = errors.New("cannot get fields in %s", field.Name).Attach(err)
@@ -225,7 +225,7 @@ func fieldsDeeper(obj interface{}, fn func(owner, this reflect.Value), deep bool
 			} else {
 				// allFields = append(allFields, field.Name)
 				fieldValue := objValue.Field(i)
-				fn(*owner, fieldValue)
+				fn(owner, field, fieldValue)
 			}
 		}
 	}

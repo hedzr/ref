@@ -6,19 +6,20 @@ import (
 	"testing"
 )
 
-type TestStruct struct {
+type testStruct struct {
 	unexported uint64
 	Dummy      string `test:"dummytag"`
 	Yummy      int    `test:"yummytag"`
 }
 
-func TestTypes(t *testing.T) {
+func TestMisc(t *testing.T) {
 	t.Run("for TypeOf", testTypeOf)
-	t.Run("for TypeOf", testTypeOf)
+	t.Run("for FieldDeeper", testFieldDeeper)
+	t.Run("for FieldTagDeeper", testFieldTagDeeper)
 }
 
 func testTypeOf(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -32,6 +33,28 @@ func testTypeOf(t *testing.T) {
 	}
 }
 
+func testFieldDeeper(t *testing.T) {
+	dummyStruct := testStruct{
+		Dummy: "test",
+	}
+
+	err := FieldsDeeper(dummyStruct, func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value) {
+		t.Logf("    -> owner: %v, this: %v / %v", owner, thisField, this)
+	})
+	assert.NoError(t, err)
+}
+
+func testFieldTagDeeper(t *testing.T) {
+	dummyStruct := testStruct{
+		Dummy: "test",
+	}
+
+	err := FieldsTagDeeper(dummyStruct, "test", func(owner *reflect.Value, thisField reflect.StructField, this reflect.Value, tagValue string) {
+		t.Logf("    -> owner: %v, this: %v / %v, tag-value: %q", owner, thisField, this, tagValue)
+	})
+	assert.NoError(t, err)
+}
+
 func TestGetField(t *testing.T) {
 	t.Run("on struct", testGetFieldOnStruct)
 	t.Run("on struct pointer", testGetFieldOnStructPointer)
@@ -41,7 +64,7 @@ func TestGetField(t *testing.T) {
 }
 
 func testGetFieldOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -51,7 +74,7 @@ func testGetFieldOnStruct(t *testing.T) {
 }
 
 func testGetFieldOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 	}
 
@@ -68,7 +91,7 @@ func testGetFieldOnNonStruct(t *testing.T) {
 }
 
 func testGetFieldNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -77,7 +100,7 @@ func testGetFieldNonExistingField(t *testing.T) {
 }
 
 func testGetFieldUnexportedField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		unexported: 12345,
 		Dummy:      "test",
 	}
@@ -95,7 +118,7 @@ func TestGetFieldKind(t *testing.T) {
 }
 
 func testGetFieldKindOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -110,7 +133,7 @@ func testGetFieldKindOnStruct(t *testing.T) {
 }
 
 func testGetFieldKindOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -132,7 +155,7 @@ func testGetFieldKindOnNonStruct(t *testing.T) {
 }
 
 func testGetFieldKindNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -149,7 +172,7 @@ func TestGetFieldType(t *testing.T) {
 }
 
 func testGetFieldTypeOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -164,7 +187,7 @@ func testGetFieldTypeOnStruct(t *testing.T) {
 }
 
 func testGetFieldTypeOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -186,7 +209,7 @@ func testGetFieldTypeOnNonStruct(t *testing.T) {
 }
 
 func testGetFieldTypeNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -204,7 +227,7 @@ func TestGetFieldTag(t *testing.T) {
 }
 
 func testGetFieldTagOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{}
+	dummyStruct := testStruct{}
 
 	tag, err := GetFieldTag1(dummyStruct, "test", "Dummy")
 	assert.NoError(t, err)
@@ -216,7 +239,7 @@ func testGetFieldTagOnStruct(t *testing.T) {
 }
 
 func testGetFieldTagOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{}
+	dummyStruct := &testStruct{}
 
 	tag, err := GetFieldTag1(dummyStruct, "test", "Dummy")
 	assert.NoError(t, err)
@@ -235,14 +258,14 @@ func testGetFieldTagOnNonStruct(t *testing.T) {
 }
 
 func testGetFieldTagNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{}
+	dummyStruct := testStruct{}
 
 	_, err := GetFieldTag1(dummyStruct, "test", "obladioblada")
 	assert.Error(t, err)
 }
 
 func testGetFieldTagUnexportedField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		unexported: 12345,
 		Dummy:      "test",
 	}
@@ -259,7 +282,7 @@ func TestSetField(t *testing.T) {
 }
 
 func testSetFieldOnStructWithValidValueType(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -276,7 +299,7 @@ func testSetFieldOnStructWithValidValueType(t *testing.T) {
 // }
 
 func testSetFieldNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -285,7 +308,7 @@ func testSetFieldNonExistingField(t *testing.T) {
 }
 
 func testSetFieldInvalidValueType(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -294,7 +317,7 @@ func testSetFieldInvalidValueType(t *testing.T) {
 }
 
 func testSetFieldNonExportedField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 	}
 
@@ -309,7 +332,7 @@ func TestFields(t *testing.T) {
 }
 
 func testFieldsOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -320,7 +343,7 @@ func testFieldsOnStruct(t *testing.T) {
 }
 
 func testFieldsOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -338,7 +361,7 @@ func testFieldsOnNonStruct(t *testing.T) {
 }
 
 func testFieldsWithNonExportedFields(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		unexported: 6789,
 		Dummy:      "test",
 		Yummy:      123,
@@ -358,7 +381,7 @@ func TestHasField(t *testing.T) {
 }
 
 func testHasFieldOnStructWithExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -368,7 +391,7 @@ func testHasFieldOnStructWithExistingField(t *testing.T) {
 }
 
 func testHasFieldOnStructPointerWithExistingField(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -378,7 +401,7 @@ func testHasFieldOnStructPointerWithExistingField(t *testing.T) {
 }
 
 func testHasFieldNonExistingField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -395,7 +418,7 @@ func testHasFieldOnNonStruct(t *testing.T) {
 }
 
 func testHasFieldUnexportedField(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		unexported: 7890,
 		Dummy:      "test",
 		Yummy:      123,
@@ -412,7 +435,7 @@ func TestTags(t *testing.T) {
 }
 
 func testTagsOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -426,7 +449,7 @@ func testTagsOnStruct(t *testing.T) {
 }
 
 func testTagsOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -453,7 +476,7 @@ func TestItems(t *testing.T) {
 }
 
 func testItemsOnStruct(t *testing.T) {
-	dummyStruct := TestStruct{
+	dummyStruct := testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
@@ -467,7 +490,7 @@ func testItemsOnStruct(t *testing.T) {
 }
 
 func testItemsOnStructPointer(t *testing.T) {
-	dummyStruct := &TestStruct{
+	dummyStruct := &testStruct{
 		Dummy: "test",
 		Yummy: 123,
 	}
