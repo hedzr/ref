@@ -6,57 +6,113 @@ import (
 	"strconv"
 )
 
-// Dump prints the structure and value of an object
-func Dump(obj interface{}, dumper func(level int, ownerPath, desc string, v reflect.Value)) {
+// Dump prints the structure and value of an object with pretty format
+func Dump(obj interface{}, objDesc string, dumper func(level int, desc string, v reflect.Value)) {
 	v := reflect.ValueOf(obj)
-	dumper(0, "", "Dump of object:", v)
-	dump(0, "", v, dumper)
+	ctx := ctx{
+		seen:        make(map[comparison]bool),
+		seenRecords: make(map[reflect.Value]bool),
+		objDesc:     objDesc,
+		dumper:      dumper,
+	}
+	dumper(0, ctx.objDesc, v)
+	dump(ctx, 0, v)
 }
 
-// DumpEx prints the structure and value of an object
-func DumpEx(obj interface{}, dumper func(level int, ownerPath, desc string, v reflect.Value), preDumper, postDumper func(v reflect.Value)) {
+// DumpEx prints the structure and value of an object with pretty format
+func DumpEx(obj interface{}, objDesc string, dumper func(level int, desc string, v reflect.Value), preDumper, postDumper func(v reflect.Value)) {
 	v := reflect.ValueOf(obj)
+	ctx := ctx{
+		seen:        make(map[comparison]bool),
+		seenRecords: make(map[reflect.Value]bool),
+		objDesc:     objDesc,
+		dumper:      dumper,
+	}
 	defer postDumper(v)
 	preDumper(v)
-	dump(0, "", v, dumper)
+	dump(ctx, 0, v)
+}
+
+//func addValueLog(seen map[comparison]bool, v reflect.Value) (added bool) {
+//	if !CanIsNil(v) || !IsNil(v) {
+//		added = equal(v, k, seen)
+//	}
+//}
+
+type ctx struct {
+	parent      *ctx
+	seen        map[comparison]bool
+	seenRecords map[reflect.Value]bool
+	objDesc     string
+	dumper      func(level int, desc string, v reflect.Value)
 }
 
 // dump is a helper function.
 //
 // It's inspired from *gopl* chapter 12 - display(...)
-func dump(level int, path string, v reflect.Value, dumper func(level int, ownerPath, desc string, v reflect.Value)) {
+//
+// https://github.com/adonovan/gopl.io
+func dump(c ctx, level int, v reflect.Value) {
+	if v.CanAddr() {
+		var z interface{}
+		if v.CanInterface() {
+			z = v.Interface()
+		}
+		var canIsNil = CanIsNil(v)
+		var isNil = canIsNil && v.IsNil()
+		if !canIsNil || !isNil {
+			if z != nil {
+				for k := range c.seenRecords {
+					if equal(v, k, c.seen) {
+						c.dumper(level, fmt.Sprintf("%s -> %v // <circular link detected, ignored>",
+							c.objDesc, z), v)
+						return
+					}
+				}
+				c.seenRecords[v] = true
+			}
+		}
+	}
+
 	switch v.Kind() {
 	case reflect.Invalid:
-		dumper(level, path, fmt.Sprintf("%s = invalid\n", path), v)
+		c.dumper(level, fmt.Sprintf("%s = <invalid>", c.objDesc), v)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < v.Len(); i++ {
-			dump(level+1, fmt.Sprintf("%s[%d]", path, i), v.Index(i), dumper)
+			cc := ctx{&c, c.seen, c.seenRecords, fmt.Sprintf("%s[%d]", c.objDesc, i), c.dumper}
+			dump(cc, level+1, v.Index(i))
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
-			fieldPath := fmt.Sprintf("%s.%s", path, v.Type().Field(i).Name)
-			dump(level+1, fieldPath, v.Field(i), dumper)
+			fieldPath := fmt.Sprintf("%s.%s", c.objDesc, v.Type().Field(i).Name)
+			cc := ctx{&c, c.seen, c.seenRecords, fieldPath, c.dumper}
+			dump(cc, level+1, v.Field(i))
 		}
 	case reflect.Map:
 		for _, key := range v.MapKeys() {
-			dump(level+1, fmt.Sprintf("%s[%s]", path,
-				formatAtom(key)), v.MapIndex(key), dumper)
+			cc := ctx{&c, c.seen, c.seenRecords, fmt.Sprintf("%s[%s]", c.objDesc,
+				formatAtom(key)), c.dumper}
+			dump(cc, level+1, v.MapIndex(key))
 		}
 	case reflect.Ptr:
 		if v.IsNil() {
-			dumper(level, path, fmt.Sprintf("%s = nil\n", path), v)
+			c.dumper(level, fmt.Sprintf("%s = nil", c.objDesc), v)
 		} else {
-			dump(level+1, fmt.Sprintf("(*%s)", path), v.Elem(), dumper)
+			// cc:=ctx{&c,c.seen, fieldPath,c.dumper}
+			cc := ctx{&c, c.seen, c.seenRecords, fmt.Sprintf("(*%s)", c.objDesc), c.dumper}
+			dump(cc, level+1, v.Elem())
 		}
 	case reflect.Interface:
 		if v.IsNil() {
-			dumper(level, path, fmt.Sprintf("%s = nil\n", path), v)
+			c.dumper(level, fmt.Sprintf("%s = nil", c.objDesc), v)
 		} else {
-			fmt.Printf("%s.type = %s\n", path, v.Elem().Type())
-			dump(level+1, path+".value", v.Elem(), dumper)
+			cc := ctx{&c, c.seen, c.seenRecords, c.objDesc + ".value", c.dumper}
+			//fmt.Printf("%s.type = %s\n", c.objDesc, v.Elem().Type())
+			c.dumper(level, fmt.Sprintf("%s.type = %s", c.objDesc, v.Elem().Type()), v)
+			dump(cc, level+1, v.Elem())
 		}
-	default: // basic types, channels, funcs
-		dumper(level, path, fmt.Sprintf("%s = %s\n", path, formatAtom(v)), v)
+	default: // basic types, channels, functions
+		c.dumper(level, fmt.Sprintf("%s = %s", c.objDesc, formatAtom(v)), v)
 	}
 }
 
