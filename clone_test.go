@@ -4,7 +4,9 @@ import (
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex"
 	"github.com/hedzr/logex/logx/logrus"
+	"gopkg.in/hedzr/errors.v2"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -87,6 +89,11 @@ func TestCloneMore(t *testing.T) {
 	t.Run("Default copier: copy two struct", testDefaultClone_copyTwoStruct)
 	t.Run("Default copier: copy struct", testDefaultClone_copyStruct)
 	t.Run("Default copier: copy struct to slice", testDefaultClone_copyFromStructToSlice)
+	t.Run("Default copier: copy embed", testDefaultClone_copyEmbedded)
+	t.Run("Default copier: copy fields with same name but different types", testDefaultClone_copyFieldsWithSameNameButDifferentTypes)
+
+	t.Run("Default copier: test scanner", testDefaultClone_testScanner)
+	t.Run("Default copier: copy between primitive types", testDefaultClone_copyBetweenPrimitiveTypes)
 
 	t.Run("Default copier: on map", testDefaultClone_onMap)
 
@@ -199,6 +206,142 @@ func testDefaultClone_copyFromStructToSlice(t *testing.T) {
 	} else {
 		checkEmployee(*((*employees4)[0]), user, t, "Copy From Struct To Double Ptr Slice Ptr")
 	}
+}
+
+func testDefaultClone_copyEmbedded(t *testing.T) {
+	type Base struct {
+		BaseField1 int
+		BaseField2 int
+	}
+
+	type Embed struct {
+		EmbedField1 int
+		EmbedField2 int
+		Base
+	}
+
+	base := Base{}
+	embedded := Embed{}
+	embedded.BaseField1 = 1
+	embedded.BaseField2 = 2
+	embedded.EmbedField1 = 3
+	embedded.EmbedField2 = 4
+
+	Clone(&embedded, &base)
+
+	if base.BaseField1 != 1 {
+		t.Error("Embedded fields not copied")
+	}
+
+	if err := DefaultCloner.Copy(&embedded, &base); err != nil {
+		t.Error(err)
+	}
+}
+
+type structSameName1 struct {
+	A string
+	B int64
+	C time.Time
+}
+
+type structSameName2 struct {
+	A string
+	B time.Time
+	C int64
+}
+
+func testDefaultClone_copyFieldsWithSameNameButDifferentTypes(t *testing.T) {
+	obj1 := structSameName1{A: "123", B: 2, C: time.Now()}
+	obj2 := &structSameName2{}
+	err := DefaultCloner.Copy(&obj1, obj2)
+	if err != nil {
+		t.Logf("For the diff types some error should be raised but you can omit them safely: %v", err)
+	}
+
+	if obj2.A != obj1.A {
+		t.Errorf("Field A should be copied")
+	}
+
+	err = DefaultCloner.Copy(&obj1, obj2)
+	if err != nil {
+		// t.Error(err)
+		t.Logf("For the diff types some error should be raised but you can omit them safely: %v", err)
+	}
+}
+
+type ScannerValue struct {
+	V int
+}
+
+func (s *ScannerValue) Scan(src interface{}) error {
+	return errors.New("I failed")
+}
+
+type ScannerStruct struct {
+	V *ScannerValue
+}
+
+type ScannerStructTo struct {
+	V *ScannerValue
+}
+
+func testDefaultClone_testScanner(t *testing.T) {
+	s := &ScannerStruct{
+		V: &ScannerValue{
+			V: 12,
+		},
+	}
+
+	s2 := &ScannerStructTo{}
+
+	err := DefaultCloner.Copy(s, s2)
+	if err != nil {
+		t.Error("Should not raise error")
+	}
+
+	if s.V.V != s2.V.V {
+		t.Errorf("Field V should be copied")
+	}
+}
+
+func testDefaultClone_copyBetweenPrimitiveTypes(t *testing.T) {
+	var aa = "dsajkld"
+	var b int
+
+	// cmdr.Clone(b, aa)
+
+	Clone(&aa, b)
+
+	Clone(&aa, &b)
+
+	Clone(nil, &b)
+	var b1 *int = &b
+	Clone(nil, &b1)
+
+	var c, d bool
+	Clone(&c, &d)
+
+	var e, f int
+	Clone(&e, &f)
+	var e1, f1 int8
+	f1 = 1
+	Clone(&f1, &e1)
+	if e1 != 1 {
+		t.Failed()
+	}
+	var e2, f2 int16
+	Clone(&e2, &f2)
+	var e3, f3 int32
+	Clone(&e3, &f3)
+	var e4, f4 int64
+	e4 = 9
+	Clone(&e4, &f4)
+	if f4 != 9 {
+		t.Failed()
+	}
+
+	var g, h string
+	Clone(&g, &h)
 }
 
 func testDefaultClone_onMap(t *testing.T) {

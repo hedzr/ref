@@ -102,6 +102,8 @@ func (v Value) IsFloat() bool                     { return v.IsKindFloat(v.Kind(
 func (v Value) IsComplex() bool                   { return v.IsKindComplex(v.Kind()) }
 func (v Value) IsStruct() bool                    { return v.Kind() == reflect.Struct }
 func (v Value) IsPointer() bool                   { return v.Kind() == reflect.Ptr }
+func (v Value) IndirectType() Type                { return Type{v.Type()}.IndirectType() }
+func (v Value) IndirectTypeRecursive() Type       { return Type{v.Type()}.IndirectTypeRecursive() }
 
 func (v Value) IndirectValue() Value {
 	if v.Kind() == reflect.Ptr {
@@ -211,6 +213,32 @@ func (v Value) IsNil() bool {
 		//	return *(*unsafe.Pointer)(v.ptr) == nil
 	}
 	return false
+}
+
+func (v Value) SetZero() {
+	if CanIsZero(v.Value) {
+		v.Set(reflect.Zero(v.Type()))
+	}
+}
+
+func (v Value) SetNil() {
+	//k := v.Kind()
+	//switch k {
+	//case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer:
+	//	SetNil(v.Value)
+	//case reflect.Slice:
+	//	SetNil(v.Value)
+	//case reflect.Interface:
+	//	SetNil(v.Value)
+	//}
+
+	// SetNil(v.Value)
+
+	if CanIsNil(v.Value) {
+		// to.Set(reflect.New(to.Type().Elem()))
+		z := reflect.Zero(v.Type())
+		v.Set(z)
+	}
 }
 
 func reflectValueRecursive(obj interface{}) reflect.Value {

@@ -60,6 +60,17 @@ func Clone(fromVar, toVar interface{}, opts ...CloneOpt) interface{} {
 	for _, opt := range opts {
 		opt(&c)
 	}
+
+	if fromVar == nil {
+		if toVar != nil {
+			ValueOf(toVar).IndirectValue().SetNil() // set the target object to zero or nil
+		}
+		return toVar
+	}
+	if toVar == nil {
+		return toVar
+	}
+
 	if err := c.Copy(fromVar, toVar); err != nil {
 		log.Warnf("Clone not ok: %v", err)
 	}
@@ -276,13 +287,12 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 			continue
 		}
 		if field.Anonymous {
-			// fieldValue := from.Field(i)
-			// subFields, err := fields(fieldValue.Interface(), true)
-			// if err != nil {
-			//	return nil, fmt.Errorf("Cannot get fields in %s: %s", field.Name, err.Error())
-			// }
-			err = errors.New("nested structure on field %q", field.Name)
-			return
+			fieldValue := from.Field(i)
+			if err = c.copyStructTo(Value{fieldValue}, to, oft, ott, ofv, otv); err != nil {
+				// err = errors.New("nested structure on field %q", field.Name)
+				return
+			}
+			continue
 		}
 
 		toName := c.targetName(field.Name)
@@ -306,6 +316,10 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 				z = z.Elem()
 			}
 			if tot == nil || tot.Kind() == reflect.Invalid {
+				if !tof.IsValid() {
+					continue // the target field not exists, ignore it and go to next field
+				}
+
 				log.Debugf("  | tof.IsValid: %v", tof.IsValid())
 				tot = tof.Type()
 			}
@@ -379,6 +393,10 @@ func (c cloner) copyFieldToField(fromField, toField reflect.Value, fromFieldStru
 	// if fromName == "DoubleAge" || fromName == "Role" {
 	//	log.Debugf("%q (%v) -> %q (%v)", fromName, oft, toName, ott)
 	// }
+
+	//if !fromField.Type().AssignableTo(toField.Type()) {
+	//	return // ignore copying between the different types if them can be assigned to the opposite one.
+	//}
 
 	fk, tk := fromField.Kind(), toField.Kind()
 
