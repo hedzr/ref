@@ -134,8 +134,8 @@ func formatAtom(v reflect.Value) string {
 		return strconv.FormatUint(v.Uint(), 10)
 	case reflect.Float32, reflect.Float64:
 		return strconv.FormatFloat(v.Float(), 'f', -1, 64)
-	case reflect.Complex64, reflect.Complex128:
-		return strconv.FormatComplex(v.Complex(), 'f', -1, 128)
+	// case reflect.Complex64, reflect.Complex128:
+	// 	return strconv.FormatComplex(v.Complex(), 'f', -1, 128)
 	case reflect.Bool:
 		return strconv.FormatBool(v.Bool())
 	case reflect.String:

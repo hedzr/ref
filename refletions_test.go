@@ -16,6 +16,25 @@ func TestMisc(t *testing.T) {
 	t.Run("for TypeOf", testTypeOf)
 	t.Run("for FieldDeeper", testFieldDeeper)
 	t.Run("for FieldTagDeeper", testFieldTagDeeper)
+	t.Run("testUnexported", testUnexported)
+}
+
+type Foo struct {
+	Exported   string
+	unexported string
+}
+
+func testUnexported(t *testing.T) {
+	f := &Foo{
+		Exported: "Old Value ",
+	}
+
+	t.Log(f.Exported)
+
+	field := reflect.ValueOf(f).Elem().FieldByName("unexported")
+	SetUnexportedField(field, "New Value")
+	t.Log(GetUnexportedField(field))
+	t.Logf("foo: %+v", f)
 }
 
 func testTypeOf(t *testing.T) {

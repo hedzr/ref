@@ -8,9 +8,9 @@ go 1.13
 
 // replace github.com/hedzr/cmdr => ../cmdr
 
-// replace github.com/hedzr/log => ../log
+//replace github.com/hedzr/log => ../log
 
-// replace github.com/hedzr/logex => ../logex
+//replace github.com/hedzr/logex => ../logex
 
 // replace github.com/hedzr/cmdr-addons => ../cmdr-addons
 
@@ -22,5 +22,8 @@ go 1.13
 
 require (
 	github.com/hedzr/assert v0.1.0
+	github.com/hedzr/log v0.3.0
+	github.com/hedzr/logex v1.3.0
+	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0 // indirect
 	gopkg.in/hedzr/errors.v2 v2.1.1
 )

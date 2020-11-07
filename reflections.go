@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/hedzr/errors.v2"
 	"reflect"
+	"unsafe"
 )
 
 // GetField returns the value of the provided obj field. obj can whether
@@ -391,21 +392,39 @@ func tags(obj interface{}, key string, deep bool) (map[string]string, error) {
 	return allTags, nil
 }
 
-func reflectValue(obj interface{}) reflect.Value {
-	var val reflect.Value
+type Field struct {
+	Type  reflect.StructField
+	Value reflect.Value
+}
 
-	if reflect.TypeOf(obj).Kind() == reflect.Ptr {
-		val = reflect.ValueOf(obj).Elem()
-	} else {
-		val = reflect.ValueOf(obj)
-	}
+func (field Field) GetUnexportedField() interface{} {
+	return reflect.NewAt(field.Value.Type(), unsafe.Pointer(field.Value.UnsafeAddr())).Elem().Interface()
+}
 
-	return val
+func (field Field) SetUnexportedField(value interface{}) {
+	reflect.NewAt(field.Value.Type(), unsafe.Pointer(field.Value.UnsafeAddr())).
+		Elem().
+		Set(reflect.ValueOf(value))
+}
+
+func GetUnexportedField(field reflect.Value) interface{} {
+	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
+}
+
+func SetUnexportedField(field reflect.Value, value interface{}) {
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).
+		Elem().
+		Set(reflect.ValueOf(value))
 }
 
 func isExportableField(field reflect.StructField) bool {
 	// PkgPath is empty for exported fields.
 	return field.PkgPath == ""
+}
+
+func isExportableMethod(mtd reflect.Method) bool {
+	// PkgPath is empty for exported fields.
+	return mtd.PkgPath == ""
 }
 
 func hasAnyValidTypes(obj interface{}, types ...reflect.Kind) bool {
@@ -424,12 +443,4 @@ func hasAllValidTypes(obj interface{}, types ...reflect.Kind) bool {
 		}
 	}
 	return true
-}
-
-func isStruct(obj interface{}) bool {
-	return reflect.TypeOf(obj).Kind() == reflect.Struct
-}
-
-func isPointer(obj interface{}) bool {
-	return reflect.TypeOf(obj).Kind() == reflect.Ptr
 }

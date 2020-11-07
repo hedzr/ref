@@ -13,8 +13,15 @@ import (
 )
 
 func TestDump(t *testing.T) {
-	t.Run("testDumpexSimple", testDumpexSimple)
-	t.Run("testDumpOnCircularRef", testDumpOnCircularRef)
+	t.Run("Pretty dump: testDumpOnZeroFields", testDumpOnZeroFields)
+	t.Run("Pretty dump: testDumpexSimple", testDumpexSimple)
+	t.Run("Pretty dump: testDumpOnCircularRef", testDumpOnCircularRef)
+}
+
+func testDumpOnZeroFields(t *testing.T) {
+	Dump(user2, "user2", func(level int, desc string, v reflect.Value) {
+		fmt.Println(strings.Repeat("  ", level+1), desc)
+	})
 }
 
 func testDumpexSimple(t *testing.T) {
