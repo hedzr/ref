@@ -161,11 +161,11 @@ type cloner struct {
 }
 
 func (c cloner) Copy(fromVar, toVar interface{}, Opts ...Opt) (err error) {
-	if !hasAnyValidTypes(fromVar, reflect.Struct, reflect.Ptr) {
+	if !hasAnyValidTypes(fromVar, reflect.Struct, reflect.Ptr, reflect.Map) {
 		err = errors.New("fromVar should be a valid struct object or pointer object")
 		return
 	}
-	if !hasAnyValidTypes(toVar, reflect.Struct, reflect.Ptr) {
+	if !hasAnyValidTypes(toVar, reflect.Struct, reflect.Ptr, reflect.Map) {
 		err = errors.New("toVar should be a valid struct object or pointer object")
 		return
 	}
@@ -216,32 +216,35 @@ func (c cloner) Copy(fromVar, toVar interface{}, Opts ...Opt) (err error) {
 }
 
 func (c cloner) copyMapTo(from, to Value, fk, tk reflect.Kind, oft, ott reflect.Type, ofv, otv Value) (err error) {
+	fromType, toType := from.Type(), to.Type()
+	keyType := fromType.Key()
+	valType := fromType.Elem()
+	log.Debug("source map: %v. k=%v, v=%v", fromType, keyType, valType)
+
+	if toType.Kind() == reflect.Map {
+		err = c.copyMapToMap(from, to, fromType, toType, keyType, valType)
+	}
+
+	// err = errors.New("not implement")
+	return
+}
+
+func (c cloner) copyMapToMap(from, to Value, fromType, toType, keyType, valType reflect.Type) (err error) {
+	for _, key := range from.MapKeys() {
+		toKeyType := toType.Key()
+		toValType := toType.Elem()
+		//if !keyType.AssignableTo(toKeyType) || !valType.AssignableTo(toValType) {
+		//	continue
+		//}
+		// to.
+
+		log.Debugf("  - %v:%v = %v", toKeyType, toValType, key.Interface())
+	}
 	return
 }
 
 func (c cloner) copySliceTo(from, to Value, fk, tk reflect.Kind, oft, ott reflect.Type, ofv, otv Value) (err error) {
-	return
-}
-
-func (c cloner) indirectCreate(fromType reflect.Type) (newTargetType reflect.Type, parent, newTo Value) {
-	newTargetType = fromType
-	log.Debugf("    .. indirectCreate %v ...", fromType)
-
-	if newTargetType.Kind() != reflect.Ptr {
-		newTo = ValueOf(reflect.New(newTargetType))
-		parent = newTo
-		newTo = newTo.IndirectValueRecursive()
-		return
-	}
-
-	var tp Value
-	var tt = fromType.Elem()
-	newTargetType, tp, newTo = c.indirectCreate(tt)
-	parent = tp
-	if tp.CanAddr() {
-		parent = ValueOf(reflect.New(fromType))
-		parent.Set(tp.Addr())
-	}
+	err = errors.New("not implement")
 	return
 }
 
@@ -353,6 +356,28 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 			out := vom.Call([]reflect.Value{})
 			tof.Set(out[0])
 		}
+	}
+	return
+}
+
+func (c cloner) indirectCreate(fromType reflect.Type) (newTargetType reflect.Type, parent, newTo Value) {
+	newTargetType = fromType
+	log.Debugf("    .. indirectCreate %v ...", fromType)
+
+	if newTargetType.Kind() != reflect.Ptr {
+		newTo = ValueOf(reflect.New(newTargetType))
+		parent = newTo
+		newTo = newTo.IndirectValueRecursive()
+		return
+	}
+
+	var tp Value
+	var tt = fromType.Elem()
+	newTargetType, tp, newTo = c.indirectCreate(tt)
+	parent = tp
+	if tp.CanAddr() {
+		parent = ValueOf(reflect.New(fromType))
+		parent.Set(tp.Addr())
 	}
 	return
 }

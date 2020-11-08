@@ -5,6 +5,7 @@ import (
 	"github.com/hedzr/logex"
 	"github.com/hedzr/logex/logx/logrus"
 	"gopkg.in/hedzr/errors.v2"
+	"reflect"
 	"testing"
 	"time"
 	"unsafe"
@@ -94,9 +95,6 @@ func TestCloneMore(t *testing.T) {
 
 	t.Run("Default copier: test scanner", testDefaultClone_testScanner)
 	t.Run("Default copier: copy between primitive types", testDefaultClone_copyBetweenPrimitiveTypes)
-
-	t.Run("Default copier: on map", testDefaultClone_onMap)
-
 }
 
 func testDefaultClone_copyCov(t *testing.T) {
@@ -344,7 +342,87 @@ func testDefaultClone_copyBetweenPrimitiveTypes(t *testing.T) {
 	Clone(&g, &h)
 }
 
-func testDefaultClone_onMap(t *testing.T) {
-	Clone(&uFrom, &uTo)
-	t.Log(uTo)
+func TestCloneMap(t *testing.T) {
+
+	t.Run("Map: basics", testMap_basics)
+	t.Run("Map: new map 1", testMap_newMap_1)
+	t.Run("Map: new map 2", testMap_newMap_2)
+	t.Run("Map: clone", testMap_clone)
+
+}
+
+func testMap_newMap_1(t *testing.T) {
+	var key = "key1"
+	var value = 123
+
+	var keyType = reflect.TypeOf(key)
+	var valueType = reflect.TypeOf(value)
+	var aMapType = reflect.MapOf(keyType, valueType)
+	aMap := reflect.MakeMapWithSize(aMapType, 0)
+	aMap.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+	t.Logf("%T:  %v\n", aMap.Interface(), aMap.Interface())
+}
+
+func testMap_newMap_2(t *testing.T) {
+	key := 1
+	value := "abc"
+
+	mapType := reflect.MapOf(reflect.TypeOf(key), reflect.TypeOf(value))
+
+	mapValue := reflect.MakeMap(mapType)
+	mapValue.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+	mapValue.SetMapIndex(reflect.ValueOf(2), reflect.ValueOf("def"))
+	mapValue.SetMapIndex(reflect.ValueOf(3), reflect.ValueOf("gh"))
+
+	keys := mapValue.MapKeys()
+	for _, k := range keys {
+		ck := k.Convert(mapValue.Type().Key())
+		cv := mapValue.MapIndex(ck)
+		t.Logf("key: %v,  value: %v", ck, cv)
+	}
+}
+
+func testMap_basics(t *testing.T) {
+	mi := map[string]string{
+		"a": "this is a",
+		"b": "this is b",
+	}
+
+	var input interface{}
+	input = mi
+	m := reflect.ValueOf(input)
+	if m.Kind() == reflect.Map {
+
+		var key = reflect.ValueOf("a")
+		val := m.MapIndex(key)
+		t.Logf("map[%q] = %q", key.String(), val.String())
+
+		var it *reflect.MapIter
+		it = m.MapRange()
+		t.Log("iterating...")
+		for it.Next() {
+			t.Logf("  m[%q] = %q", it.Key(), it.Value())
+		}
+
+		newInstance := reflect.MakeMap(m.Type())
+		keys := m.MapKeys()
+		for _, k := range keys {
+			key := k.Convert(newInstance.Type().Key()) //.Convert(m.Type().Key())
+			value := m.MapIndex(key)
+			newInstance.SetMapIndex(key, value)
+		}
+		t.Logf("newInstance = %v", newInstance)
+	}
+}
+
+func testMap_clone(t *testing.T) {
+	var m1 = map[string]interface{}{
+		"a": 1,
+		"b": true,
+		"c": "text",
+	}
+	var m2 map[string]interface{}
+
+	Clone(m1, &m2)
+	t.Log(m2)
 }
