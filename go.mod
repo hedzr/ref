@@ -21,7 +21,7 @@ go 1.13
 // replace github.com/hedzr/assert => ../assert
 
 require (
-	github.com/hedzr/assert v0.1.0
+	github.com/hedzr/assert v0.1.2
 	github.com/hedzr/log v0.3.0
 	github.com/hedzr/logex v1.3.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0 // indirect

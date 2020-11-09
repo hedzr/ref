@@ -8,8 +8,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
-github.com/hedzr/assert v0.1.0 h1:gY3AMLagOK/7YBGTu09d8DZvYzJoP6bxrcq6SGeOGJM=
-github.com/hedzr/assert v0.1.0/go.mod h1:MuCz8aoH0aJDtADORl7HbprfDS2NZhVio08RC/XUnwk=
+github.com/hedzr/assert v0.1.2 h1:oHcJMwmZtESAKGlsCR8m/aHnl8Shfw3PbdHsInvqikk=
+github.com/hedzr/assert v0.1.2/go.mod h1:MuCz8aoH0aJDtADORl7HbprfDS2NZhVio08RC/XUnwk=
 github.com/hedzr/log v0.3.0 h1:CDF2kF3pmeEN4ukuzAlautSeAIhrwblNt2INGuwS0eA=
 github.com/hedzr/log v0.3.0/go.mod h1:lDXNKm4x+b3Dpw4r9P7DfvUnsckb4MJ7kn9ri8ipMPo=
 github.com/hedzr/logex v1.3.0 h1:WwcB09JHKtCktoEE2KQKSPIOq8EuQZ5iqw+tO6HtwrQ=
