@@ -1,9 +1,7 @@
 package ref
 
 import (
-	"github.com/hedzr/log"
-	"github.com/hedzr/logex"
-	"github.com/hedzr/logex/logx/logrus"
+	"github.com/hedzr/assert"
 	"gopkg.in/hedzr/errors.v2"
 	"reflect"
 	"testing"
@@ -12,6 +10,8 @@ import (
 )
 
 func TestClone(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("GOB copier: simple clone", testGobSimpleClone)
 	t.Run("Default copier: cloneable clone", testDefaultCloneableClone)
 	t.Run("Default copier: cloneable clone 2", testDefaultCloneableClone2)
@@ -78,13 +78,7 @@ func testDefaultSimpleClone2(t *testing.T) {
 }
 
 func TestCloneMore(t *testing.T) {
-
-	// build.New(build.NewLoggerConfigWith(true, "logex", "debug"))
-	l := logrus.New("debug", false, true)
-	defer logex.CaptureLog(t).Release()
-
-	l.Infof("123")
-	log.Infof("456")
+	defer initLogger(t)()
 
 	t.Run("Default copier: copy cov", testDefaultClone_copyCov)
 	t.Run("Default copier: copy two struct", testDefaultClone_copyTwoStruct)
@@ -342,44 +336,14 @@ func testDefaultClone_copyBetweenPrimitiveTypes(t *testing.T) {
 	Clone(&g, &h)
 }
 
-func TestCloneMap(t *testing.T) {
+func TestCloneMapBasics(t *testing.T) {
+	defer initLogger(t)()
 
 	t.Run("Map: basics", testMap_basics)
 	t.Run("Map: new map 1", testMap_newMap_1)
 	t.Run("Map: new map 2", testMap_newMap_2)
-	t.Run("Map: clone", testMap_clone)
-
-}
-
-func testMap_newMap_1(t *testing.T) {
-	var key = "key1"
-	var value = 123
-
-	var keyType = reflect.TypeOf(key)
-	var valueType = reflect.TypeOf(value)
-	var aMapType = reflect.MapOf(keyType, valueType)
-	aMap := reflect.MakeMapWithSize(aMapType, 0)
-	aMap.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
-	t.Logf("%T:  %v\n", aMap.Interface(), aMap.Interface())
-}
-
-func testMap_newMap_2(t *testing.T) {
-	key := 1
-	value := "abc"
-
-	mapType := reflect.MapOf(reflect.TypeOf(key), reflect.TypeOf(value))
-
-	mapValue := reflect.MakeMap(mapType)
-	mapValue.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
-	mapValue.SetMapIndex(reflect.ValueOf(2), reflect.ValueOf("def"))
-	mapValue.SetMapIndex(reflect.ValueOf(3), reflect.ValueOf("gh"))
-
-	keys := mapValue.MapKeys()
-	for _, k := range keys {
-		ck := k.Convert(mapValue.Type().Key())
-		cv := mapValue.MapIndex(ck)
-		t.Logf("key: %v,  value: %v", ck, cv)
-	}
+	t.Run("Map: d1 (isnil)", testMap_d1)
+	t.Run("Map: d2 (makemap)", testMap_d2)
 }
 
 func testMap_basics(t *testing.T) {
@@ -415,6 +379,78 @@ func testMap_basics(t *testing.T) {
 	}
 }
 
+func testMap_newMap_1(t *testing.T) {
+	var key = "key1"
+	var value = 123
+
+	var keyType = reflect.TypeOf(key)
+	var valueType = reflect.TypeOf(value)
+	var aMapType = reflect.MapOf(keyType, valueType)
+	aMap := reflect.MakeMapWithSize(aMapType, 0)
+	aMap.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+	t.Logf("%T:  %v\n", aMap.Interface(), aMap.Interface())
+}
+
+func testMap_newMap_2(t *testing.T) {
+	key := 1
+	value := "abc"
+
+	mapType := reflect.MapOf(reflect.TypeOf(key), reflect.TypeOf(value))
+
+	mapValue := reflect.MakeMap(mapType)
+	mapValue.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+	mapValue.SetMapIndex(reflect.ValueOf(2), reflect.ValueOf("def"))
+	mapValue.SetMapIndex(reflect.ValueOf(3), reflect.ValueOf("gh"))
+
+	keys := mapValue.MapKeys()
+	for _, k := range keys {
+		ck := k.Convert(mapValue.Type().Key())
+		cv := mapValue.MapIndex(ck)
+		t.Logf("key: %v,  value: %v", ck, cv)
+	}
+}
+
+func testMap_d1(t *testing.T) {
+	var m2 map[string]interface{}
+
+	vv := ValueOf(m2)
+	assert.Nil(t, m2)
+	assert.NotNil(t, &vv)
+	b := vv.IsNil()
+	assert.Equal(t, reflect.ValueOf(m2).IsNil(), b)
+	var ch chan bool
+	assert.Equal(t, reflect.ValueOf(ch).IsNil(), ValueOf(ch).IsNil())
+	var fn func()
+	assert.Equal(t, reflect.ValueOf(fn).IsNil(), ValueOf(fn).IsNil())
+	t.Log("ok 1")
+}
+
+func testMap_d2(t *testing.T) {
+	var m1 map[string]interface{}
+	var m2 = &m1
+
+	v2 := ValueOf(m2)
+	v2i := v2.IndirectValueRecursive()
+
+	t.Logf("v2i: %v     | v2: %v      | m2: %v", v2i.Type(), v2.Type(), m2)
+	nmi := reflect.MakeMap(reflect.TypeOf(m1))
+	nmi.SetMapIndex(reflect.ValueOf("today"), reflect.ValueOf("is monday"))
+	t.Logf("nmi: %v", nmi.Type())
+	t.Logf("     %v | %v | %v", v2.CanAddr(), v2i.CanAddr(), nmi.CanAddr())
+	//*(v2.Interface().(*map[string]interface{})) = nmi.Interface().(map[string]interface{})
+	v2.Elem().Set(nmi)
+	t.Logf("m2 = %v", m2)
+}
+
+func TestCloneMap(t *testing.T) {
+	defer initLogger(t)()
+
+	t.Run("Map: clone", testMap_clone)
+	t.Run("Map: to struct", testMap_cloneToStruct)
+	t.Run("Map: from struct", testMap_cloneFromStruct)
+
+}
+
 func testMap_clone(t *testing.T) {
 	var m1 = map[string]interface{}{
 		"a": 1,
@@ -423,6 +459,59 @@ func testMap_clone(t *testing.T) {
 	}
 	var m2 map[string]interface{}
 
+	// m2 can be an empty map
 	Clone(m1, &m2)
-	t.Log(m2)
+	t.Logf("m2 = %v", m2)
+	assert.Equal(t, "text", m2["c"])
+
+	var m3 = make(map[string]interface{})
+	m3["extra"] = 100
+	m3["a"] = -1
+	Clone(m1, &m3)
+	t.Logf("m3 = %v", m3)
+	assert.Equal(t, "text", m3["c"])
+	assert.Equal(t, 100, m3["extra"])
+	assert.Equal(t, true, m3["b"])
+	assert.Equal(t, 1, m3["a"])
+}
+
+func testMap_cloneToStruct(t *testing.T) {
+	var m1 = map[string]interface{}{
+		"a": 1,
+		"b": true,
+		"c": "text",
+	}
+	type sss struct {
+		A int64
+		B bool
+		C string
+	}
+	var s sss
+	Clone(m1, &s)
+	t.Logf("copy map to struct: result = %v", s)
+	assert.Equal(t, "text", s.C)
+	assert.Equal(t, true, s.B)
+	// assert.Equal(t, 1, s.A)
+	assert.Equal(t, int64(1), s.A)
+}
+
+func testMap_cloneFromStruct(t *testing.T) {
+	type sss struct {
+		A int64
+		B bool
+		C string
+	}
+	var s = sss{
+		A: 2,
+		B: true,
+		C: "dayNight",
+	}
+
+	var m2 int
+	Clone(s, &m2)
+	t.Logf("copy struct to int: result = %v", m2)
+
+	var m1 map[string]interface{}
+	Clone(s, &m1)
+	t.Logf("copy struct to map: result = %v", m1)
 }

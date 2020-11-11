@@ -6,6 +6,8 @@ import (
 	"github.com/hedzr/log"
 	"gopkg.in/hedzr/errors.v2"
 	"reflect"
+	"strings"
+	"unicode"
 )
 
 type (
@@ -221,24 +223,120 @@ func (c cloner) copyMapTo(from, to Value, fk, tk reflect.Kind, oft, ott reflect.
 	valType := fromType.Elem()
 	log.Debug("source map: %v. k=%v, v=%v", fromType, keyType, valType)
 
-	if toType.Kind() == reflect.Map {
+	switch toType.Kind() {
+	case reflect.Map:
 		err = c.copyMapToMap(from, to, fromType, toType, keyType, valType)
+	case reflect.Struct:
+		err = c.copyMapToStruct(from, to, fromType, toType, keyType, valType)
+	default:
+		err = errors.New("copying from %v to %v: NOT IMPLEMENT", oft, ott)
 	}
 
 	// err = errors.New("not implement")
 	return
 }
 
+func (c cloner) copyMapToStruct(from, to Value, fromType, toType, keyType, valType reflect.Type) (err error) {
+	if to.IsNil() {
+		nsi := reflect.New(toType)
+		to.Addr().Elem().Set(nsi)
+	}
+
+	var ec = errors.NewContainer("copying")
+	var stringType = reflect.TypeOf("")
+
+	for _, key := range from.MapKeys() {
+		value := from.MapIndex(key)
+		if value.CanInterface() {
+			i := value.Interface()
+			//log.Debugf("i: %v / %v. type: %v %v", i, ValueOf(i).Kind(), value.Type(), value.Kind())
+			value = reflect.ValueOf(i)
+		}
+
+		k := key.Convert(stringType)
+		name := k.String()
+		structFieldValue := to.FieldByName(name)
+
+		// TODO more target types. for example: map, slice, ptr to struct\map\slice, ...
+		if value.Kind() == reflect.Map && structFieldValue.Kind() == reflect.Struct {
+			err = c.copyMapToStruct(Value{value}, Value{structFieldValue}, value.Type(), structFieldValue.Type(), value.Type(), structFieldValue.Type())
+			return
+		}
+
+		var ecf = errors.NewContainer("might be invalid field")
+
+	adaptedNewFieldName:
+		if !structFieldValue.IsValid() {
+			if unicode.IsLower([]rune(name)[0]) || strings.Contains(name, "-") {
+				name = strings.Title(name)
+				structFieldValue = to.FieldByName(name)
+				log.Debugf("    trying for field name %q", name)
+				ecf = errors.NewContainer("might be invalid field")
+				goto adaptedNewFieldName
+			}
+			ecf.Attach(errors.New("no such field: %s in obj", name))
+			ec.Attach(ecf.Error())
+			continue
+		}
+
+		// If obj field value is not settable an error is thrown
+		if !structFieldValue.CanSet() {
+			if unicode.IsLower([]rune(name)[0]) || strings.Contains(name, "-") {
+				name = strings.Title(name)
+				structFieldValue = to.FieldByName(name)
+				log.Debugf("    trying field name %q", name)
+				ecf = errors.NewContainer("field")
+				goto adaptedNewFieldName
+			}
+			ecf.Attach(errors.New("cannot set %s field value", name))
+			ec.Attach(ecf.Error())
+			continue
+		}
+
+		structFieldType := structFieldValue.Type()
+		//val := value.Convert(structFieldType)
+
+		if !value.Type().AssignableTo(structFieldType) {
+			value, err = c.tryConvert(value, structFieldType)
+			if err != nil {
+				ec.Attach(err)
+				continue
+			}
+			//ecf.Attach(errors.New("provided value type '%v' didn't match obj field type '%v'", value.Type(), structFieldType))
+			//ec.Attach(ecf.Error())
+			//continue
+		}
+
+		structFieldValue.Set(value)
+		ec.Attach(ecf.Error())
+	}
+
+	err = ec.Error()
+	return
+}
+
 func (c cloner) copyMapToMap(from, to Value, fromType, toType, keyType, valType reflect.Type) (err error) {
+	// 'to' mustBeMap and 'ptrToTo' mustBePtrToMap
+	// log.Debugf("ptrToTo: %v, to: %v, toType: %v", ptrToTo.Type(), to.Type(), toType)
+	if to.IsNil() { // map is nil?
+		// if an empty map found, create a new one
+		nmi := reflect.MakeMap(toType)
+		to.Addr().Elem().Set(nmi)
+	}
+
 	for _, key := range from.MapKeys() {
 		toKeyType := toType.Key()
 		toValType := toType.Elem()
 		//if !keyType.AssignableTo(toKeyType) || !valType.AssignableTo(toValType) {
 		//	continue
 		//}
-		// to.
-
-		log.Debugf("  - %v:%v = %v", toKeyType, toValType, key.Interface())
+		if key.CanInterface() {
+			log.Debugf("  - %v:%v = %v", toKeyType, toValType, key.Interface())
+		}
+		k := key.Convert(toKeyType)
+		v := from.MapIndex(key)
+		log.Debugf("    k=%v, v=%v", k, v)
+		to.SetMapIndex(k, v.Convert(toValType))
 	}
 	return
 }
@@ -271,6 +369,20 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 		return
 	}
 
+	var h held
+	var toKind = to.Kind()
+	if toKind == reflect.Map {
+		//baseType := to.Type().Elem()
+		//newTargetType, newToOrig, newTo := c.indirectCreate(baseType)
+		//log.Debugf(" copying struct to slice[0]: srcV=%v, tgtV=%v (baseType=%v, newTo.Type=%v, newToOrig.Type=%v)", fromType, newTargetType, baseType, newTo.Type(), newToOrig.Type())
+		h = newHeldMap(to.Value)
+	} else if toKind == reflect.Struct {
+		h = newHeldStruct(to.Value)
+	} else {
+		err = errors.New("cannot copy struct (%v) to %v", oft, ott.Elem())
+		return
+	}
+
 	fieldsCount := fromType.NumField()
 	for i := 0; i < fieldsCount; i++ {
 		field := fromType.Field(i)
@@ -298,37 +410,43 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 			continue
 		}
 
-		toName := c.targetName(field.Name)
-		vov := from.Field(i)
-		tof := to.FieldByName(toName)
-		var tot reflect.Type
-		if ttf, ok := to.Type().FieldByName(toName); ok {
-			tot = ttf.Type
-			// log.Debugf("  | ttf: %v | tt: %v %v | tof.IsValid: %v } to: %v", ttf, tt.Kind(), tt, tof.IsValid(), to.Type())
-		} else {
-			for z := otv.Value; z.IsValid(); {
-				tm := z.MethodByName(toName)
-				if tm.IsValid() {
-					tof = tm
-					tot = tm.Type()
-					break
+		var (
+			tot    reflect.Type
+			vov    = from.Field(i)
+			toName = c.targetName(field.Name)
+			tof    = h.Get(field, toName)
+			// tof := to.FieldByName(toName)
+		)
+		if toKind == reflect.Struct {
+			if ttf, ok := to.Type().FieldByName(toName); ok {
+				tot = ttf.Type
+				// log.Debugf("  | ttf: %v | tt: %v %v | tof.IsValid: %v } to: %v", ttf, tt.Kind(), tt, tof.IsValid(), to.Type())
+			} else {
+				for z := otv.Value; z.IsValid(); {
+					tm := z.MethodByName(toName)
+					if tm.IsValid() {
+						tof, tot = tm, tm.Type()
+						break
+					}
+					if z.Kind() != reflect.Ptr {
+						break
+					}
+					z = z.Elem()
 				}
-				if z.Kind() != reflect.Ptr {
-					break
-				}
-				z = z.Elem()
-			}
-			if tot == nil || tot.Kind() == reflect.Invalid {
-				if !tof.IsValid() {
-					continue // the target field not exists, ignore it and go to next field
-				}
+				if tot == nil || tot.Kind() == reflect.Invalid {
+					if !tof.IsValid() {
+						continue // the target field not exists, ignore it and go to next field
+					}
 
-				log.Debugf("  | tof.IsValid: %v", tof.IsValid())
-				tot = tof.Type()
+					log.Debugf("  | tof.IsValid: %v", tof.IsValid())
+					tot = tof.Type()
+				}
 			}
 		}
+		h.SetTargetField(tof)
+
 		// fk, tk := from.Kind(), to.Kind()
-		if err = c.copyFieldToField(vov, tof, field, field.Type, tot, field.Name, toName); err != nil {
+		if err = c.copyFieldToField(vov, h, field.Type, tot, field.Name, toName); err != nil {
 			return
 		}
 	}
@@ -360,28 +478,6 @@ func (c cloner) copyStructTo(from, to Value, oft, ott reflect.Type, ofv, otv Val
 	return
 }
 
-func (c cloner) indirectCreate(fromType reflect.Type) (newTargetType reflect.Type, parent, newTo Value) {
-	newTargetType = fromType
-	log.Debugf("    .. indirectCreate %v ...", fromType)
-
-	if newTargetType.Kind() != reflect.Ptr {
-		newTo = ValueOf(reflect.New(newTargetType))
-		parent = newTo
-		newTo = newTo.IndirectValueRecursive()
-		return
-	}
-
-	var tp Value
-	var tt = fromType.Elem()
-	newTargetType, tp, newTo = c.indirectCreate(tt)
-	parent = tp
-	if tp.CanAddr() {
-		parent = ValueOf(reflect.New(fromType))
-		parent.Set(tp.Addr())
-	}
-	return
-}
-
 func (c cloner) copyCloneableObject(z Cloneable, to Value, fromVar, toVar interface{}) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -409,7 +505,7 @@ func (c cloner) copyCloneableObject(z Cloneable, to Value, fromVar, toVar interf
 	return
 }
 
-func (c cloner) copyFieldToField(fromField, toField reflect.Value, fromFieldStruct reflect.StructField, oft, ott reflect.Type, fromName, toName string) (err error) {
+func (c cloner) copyFieldToField(fromField reflect.Value, to held, oft, ott reflect.Type, fromName, toName string) (err error) {
 	// fiv, tiv := fromField.IsValid(), toField.IsValid()
 	// if !fiv || !tiv {
 	//	return
@@ -423,6 +519,7 @@ func (c cloner) copyFieldToField(fromField, toField reflect.Value, fromFieldStru
 	//	return // ignore copying between the different types if them can be assigned to the opposite one.
 	//}
 
+	toField := to.TargetField()
 	fk, tk := fromField.Kind(), toField.Kind()
 
 	defer func() {
@@ -465,7 +562,7 @@ func (c cloner) copyFieldToField(fromField, toField reflect.Value, fromFieldStru
 		// 	newTargetType := toField.Type().Elem()
 		// 	newTarget := reflect.New(newTargetType)
 		// 	newTo := IndirectValue(newTarget)
-		// 	if err = c.copyFieldToField(fromField, newTo, fromFieldStruct, oft, ott, fromName, toName); err == nil {
+		// 	if err = c.copyFieldToField(fromField, newTo, fromStructField, oft, ott, fromName, toName); err == nil {
 		// 		if toField.Len() == 0 {
 		// 			toField.Set(reflect.Append(toField, newTo))
 		// 		} else {
@@ -521,42 +618,45 @@ func (c cloner) copyFieldToField(fromField, toField reflect.Value, fromFieldStru
 	} else {
 		// follow the pointer of object if necessary
 
-		if fromName == "Role" {
-			log.Debug()
-		}
-
 		fField := IndirectValue(fromField)
 		if !fField.IsValid() {
 			fField = reflect.New(oft.Elem())
 		}
 		fromField = IndirectValue(fField)
 
-		if !IsZero(toField) {
-			tField := IndirectValue(toField)
-			if !tField.IsValid() {
-				log.Debugf("ott: %v %v | tField: %v %v", ott.Kind(), ott, tField.Kind(), tField.Type())
-				tField = reflect.New(ott.Elem())
-			}
-			toField = IndirectValue(tField)
-		}
-
-		// fiv, tiv = fromField.IsValid(), toField.IsValid()
-		// if !tiv {
+		//if CanIsZero(toField) && IsZero(toField) {
+		//	tField := IndirectValue(toField)
+		//	if !tField.IsValid() {
+		//		// log.Debugf("ott: %v %v | tField: %v %v", ott.Kind(), ott, tField.Kind(), tField.Type())
+		//		tField = reflect.New(ott.Elem())
+		//	}
+		//	toField = IndirectValue(tField)
+		//}
+		//
+		//// fiv, tiv = fromField.IsValid(), toField.IsValid()
+		//// if !tiv {
+		////	return
+		//// }
+		//if !toField.IsValid() {
+		//	var tv interface{} = Value{toField}.GetValue()
+		//	log.Debugf("target field ignored: %q (%v, ott=%v, tv=%v)", toName, tk, ott, tv)
 		//	return
-		// }
-		if !toField.IsValid() {
-			return
+		//}
+		oft = fromField.Type()
+		fk = oft.Kind()
+		if toField.IsValid() {
+			ott = toField.Type()
+			tk = ott.Kind()
 		}
-		oft, ott = fromField.Type(), toField.Type()
-		fk, tk = oft.Kind(), ott.Kind()
 	}
 
-	if toField.CanSet() {
-		if needReset := c.needReset(fromField, toField); needReset {
+	if to.CanSet() {
+		if needReset := c.needReset(fromField, to); needReset {
 			SetZero(toField)
-		} else if canCopy, isNilOrZeroSkipped, cannotAssignTo := c.canCopy(fromField, toField, oft, ott); canCopy || isNilOrZeroSkipped {
+		} else if canCopy, isNilOrZeroSkipped, cannotAssignTo := c.canCopy(fromField, to, oft, ott); canCopy || isNilOrZeroSkipped {
 			if canCopy {
-				toField.Set(fromField)
+				// toField.Set(fromField)
+				to.Set(fromField)
 			} // else if isNilOrZeroSkipped { // nothing needed toField do }
 		} else if cannotAssignTo {
 			if (fk == reflect.Slice || fk == reflect.Array) && (tk == reflect.Slice || tk == reflect.Array) {
@@ -617,7 +717,12 @@ func (c cloner) copyFieldToFunc(ft, tt reflect.Type, fromName, toName string, fr
 	return
 }
 
-func (c cloner) canCopy(from, to reflect.Value, fromType, toType reflect.Type) (canCopy, isNilOrZeroSkipped, cannotAssignTo bool) {
+func (c cloner) canCopy(from reflect.Value, to held, fromType, toType reflect.Type) (canCopy, isNilOrZeroSkipped, cannotAssignTo bool) {
+	tof := to.TargetField()
+	if from.Kind() != tof.Kind() {
+		canCopy = true
+		return
+	}
 	if fromType.AssignableTo(toType) {
 		if c.EachFieldAlways {
 			canCopy = true
@@ -640,8 +745,12 @@ func (c cloner) canCopy(from, to reflect.Value, fromType, toType reflect.Type) (
 	return
 }
 
-func (c cloner) needReset(fromV, toV reflect.Value) (needReset bool) {
-	if Equal(fromV, toV) {
+func (c cloner) needReset(from reflect.Value, to held) (needReset bool) {
+	tof := to.TargetField()
+	if from.Kind() != tof.Kind() {
+		return
+	}
+	if Equal(from, tof) {
 		needReset = c.ZeroIfEqualsFrom
 	}
 	return
@@ -671,6 +780,67 @@ func (c cloner) shouldBeIgnored(name string) (ignored bool) {
 			ignored = true
 			break
 		}
+	}
+	return
+}
+
+// isSeparator reports whether the rune could mark a word boundary.
+func (c cloner) isSeparator(r rune) bool { return isSeparator(r) }
+
+// Captalize returns a copy of the string s with all Unicode letters that begin words
+// mapped to their Unicode title case.
+//
+// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+func (c cloner) Captalize(s string) string {
+	// Use a closure here to remember state.
+	// Hackish but effective. Depends on Map scanning in order and calling
+	// the closure once per rune.
+	prev := ' '
+	return strings.Map(
+		func(r rune) rune {
+			if c.isSeparator(prev) {
+				prev = r
+				return unicode.ToTitle(r)
+			}
+			prev = r
+			return r
+		},
+		s)
+}
+
+func (c cloner) tryConvert(v reflect.Value, t reflect.Type) (out reflect.Value, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			if e2, ok := e.(error); ok {
+				err = e2
+			} else {
+				err = errors.New("%v", e)
+			}
+		}
+	}()
+
+	out = v.Convert(t)
+	return
+}
+
+func (c cloner) indirectCreate(fromType reflect.Type) (newTargetType reflect.Type, parent, newTo Value) {
+	newTargetType = fromType
+	log.Debugf("    .. indirectCreate %v ...", fromType)
+
+	if newTargetType.Kind() != reflect.Ptr {
+		newTo = ValueOf(reflect.New(newTargetType))
+		parent = newTo
+		newTo = newTo.IndirectValueRecursive()
+		return
+	}
+
+	var tp Value
+	var tt = fromType.Elem()
+	newTargetType, tp, newTo = c.indirectCreate(tt)
+	parent = tp
+	if tp.CanAddr() {
+		parent = ValueOf(reflect.New(fromType))
+		parent.Set(tp.Addr())
 	}
 	return
 }

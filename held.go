@@ -9,6 +9,7 @@ type held interface {
 	// Get returns the reflect.Value object of a field from its name
 	Get(sourceField reflect.StructField, toName string) reflect.Value
 
+	CanSet() bool
 	// Set can be called after first Get(name) invoked
 	Set(newVal reflect.Value)
 	// GetSourceField can be called after first Get(name) invoked
@@ -49,6 +50,7 @@ func (h *heldStruct) FromStruct(to reflect.Value)              { h.targetObj = t
 func (h *heldStruct) OriginalTarget() (to reflect.Value)       { return h.targetObj }
 func (h *heldStruct) SetTargetField(tof reflect.Value)         { h.tof = tof }
 func (h *heldStruct) TargetField() (to reflect.Value)          { return h.tof }
+func (h *heldStruct) CanSet() bool                             { return h.field.CanSet() }
 func (h *heldStruct) Set(newVal reflect.Value)                 { h.field.Set(newVal) }
 func (h *heldStruct) GetSourceField() (sf reflect.StructField) { return h.sourceField }
 func (h *heldStruct) Get(sourceField reflect.StructField, toName string) reflect.Value {
@@ -85,6 +87,7 @@ func (h *heldMap) FromMap(to reflect.Value)                 { h.targetObj = to }
 func (h *heldMap) OriginalTarget() (to reflect.Value)       { return h.targetObj }
 func (h *heldMap) SetTargetField(tof reflect.Value)         { h.tof = tof }
 func (h *heldMap) TargetField() (to reflect.Value)          { return h.tof }
+func (h *heldMap) CanSet() bool                             { return true }
 func (h *heldMap) Set(newVal reflect.Value)                 { h.targetObj.SetMapIndex(h.keyName, newVal) }
 func (h *heldMap) GetSourceField() (sf reflect.StructField) { return h.sourceField }
 func (h *heldMap) Get(sourceField reflect.StructField, toName string) reflect.Value {
