@@ -8,15 +8,7 @@ import (
 
 // Dump prints the structure and value of an object with pretty format
 func Dump(obj interface{}, objDesc string, dumper func(level int, desc string, v reflect.Value)) {
-	v := reflect.ValueOf(obj)
-	ctx := ctx{
-		seen:        make(map[comparison]bool),
-		seenRecords: make(map[reflect.Value]bool),
-		objDesc:     objDesc,
-		dumper:      dumper,
-	}
-	dumper(0, ctx.objDesc, v)
-	dump(ctx, 0, v)
+	DumpEx(obj, objDesc, dumper, nil, nil)
 }
 
 // DumpEx prints the structure and value of an object with pretty format
@@ -28,8 +20,22 @@ func DumpEx(obj interface{}, objDesc string, dumper func(level int, desc string,
 		objDesc:     objDesc,
 		dumper:      dumper,
 	}
-	defer postDumper(v)
-	preDumper(v)
+	if postDumper != nil {
+		defer postDumper(v)
+	}
+	if preDumper != nil {
+		preDumper(v)
+	} else {
+		if objDesc == "" {
+			objDesc = "object"
+		}
+		vt := "<nil>"
+		if obj != nil {
+			vt = v.Type().String()
+		}
+		desc := fmt.Sprintf("Dumping %q (%v):", objDesc, vt)
+		dumper(-1, desc, v)
+	}
 	dump(ctx, 0, v)
 }
 

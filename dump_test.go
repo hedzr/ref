@@ -13,6 +13,8 @@ import (
 )
 
 func TestDump(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("Pretty dump: testDumpOnZeroFields", testDumpOnZeroFields)
 	t.Run("Pretty dump: testDumpexSimple", testDumpexSimple)
 	t.Run("Pretty dump: testDumpOnCircularRef", testDumpOnCircularRef)
@@ -84,14 +86,14 @@ func Example_expr() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display e (eval.call):
-	// e.fn = "sqrt"
-	// e.args[0].type = eval.binary
-	// e.args[0].value.op = 47
-	// e.args[0].value.x.type = eval.Var
-	// e.args[0].value.x.value = "A"
-	// e.args[0].value.y.type = eval.Var
-	// e.args[0].value.y.value = "pi"
+	// Dumping "e" (eval.call):
+	//      e.fn = "sqrt"
+	//        e.args[0].type = eval.binary
+	//            e.args[0].value.op = 47
+	//            e.args[0].value.x.type = eval.Var
+	//              e.args[0].value.x.value = "A"
+	//            e.args[0].value.y.type = eval.Var
+	//              e.args[0].value.y.value = "pi"
 }
 
 func Example_slice() {
@@ -99,9 +101,9 @@ func Example_slice() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display slice ([]*int):
-	// (*slice[0]) = 0
-	// slice[1] = nil
+	// Dumping "slice" ([]*int):
+	//        (*slice[0]) = 0
+	//      slice[1] = nil
 }
 
 func Example_nilInterface() {
@@ -110,8 +112,8 @@ func Example_nilInterface() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display w (<nil>):
-	// w = invalid
+	// Dumping "w" (<nil>):
+	//    w = <invalid>
 }
 
 func Example_ptrToInterface() {
@@ -120,8 +122,8 @@ func Example_ptrToInterface() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display &w (*io.Writer):
-	// (*&w) = nil
+	// Dumping "&w" (*io.Writer):
+	//      (*&w) = nil
 }
 
 func Example_struct() {
@@ -129,9 +131,9 @@ func Example_struct() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display x (struct { x interface {} }):
-	// x.x.type = int
-	// x.x.value = 3
+	// Dumping "x" (struct { x interface {} }):
+	//      x.x.type = int
+	//        x.x.value = 3
 }
 
 func Example_interface() {
@@ -140,8 +142,8 @@ func Example_interface() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display i (int):
-	// i = 3
+	// Dumping "i" (int):
+	//    i = 3
 }
 
 func Example_ptrToInterface2() {
@@ -150,9 +152,9 @@ func Example_ptrToInterface2() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display &i (*interface {}):
-	// (*&i).type = int
-	// (*&i).value = 3
+	// Dumping "&i" (*interface {}):
+	//      (*&i).type = int
+	//        (*&i).value = 3
 }
 
 func Example_array() {
@@ -160,9 +162,9 @@ func Example_array() {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
 	})
 	// Output:
-	// Display x ([1]interface {}):
-	// x[0].type = int
-	// x[0].value = 3
+	// Dumping "x" ([1]interface {}):
+	//      x[0].type = int
+	//        x[0].value = 3
 }
 
 func Example_movie() {
@@ -229,6 +231,8 @@ func Example_movie() {
 
 // This test ensures that the program terminates without crashing.
 func TestDumpMore(t *testing.T) {
+	defer initLogger(t)()
+
 	// Some other values (YMMV)
 	Dump(os.Stderr, "os.Stderr", func(level int, desc string, v reflect.Value) {
 		fmt.Println(strings.Repeat("  ", level+1), desc)
