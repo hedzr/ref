@@ -80,6 +80,12 @@ func IsZero(v reflect.Value) bool {
 	}
 }
 
+// IsZeroSafe reports whether v is the zero value for its type.
+// It panics if the argument is invalid.
+func IsZeroSafe(v reflect.Value) bool {
+	return IsZero(v)
+}
+
 // IsNil reports whether its argument v is nil. The argument must be
 // a chan, func, interface, map, pointer, or slice value; if it is
 // not, IsNil panics. Note that IsNil is not always equivalent to a
@@ -88,23 +94,61 @@ func IsZero(v reflect.Value) bool {
 // i==nil will be true but v.IsNil will panic as v will be the zero
 // Value.
 func IsNil(v reflect.Value) bool {
+	//k := v.Kind()
+	//switch k {
+	//case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer:
+	//	if v.flag&flagMethod != 0 {
+	//		return false
+	//	}
+	//	ptr := v.ptr
+	//	if v.flag&flagIndir != 0 {
+	//		ptr = *(*unsafe.Pointer)(ptr)
+	//	}
+	//	return ptr == nil
+	//case reflect.Interface, reflect.Slice:
+	//	// Both interface and slice are nil if first word is 0.
+	//	// Both are always bigger than a word; assume flagIndir.
+	//	return *(*unsafe.Pointer)(v.ptr) == nil
+	//}
+	//return false
 	k := v.Kind()
 	switch k {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer:
-		if v.flag&flagMethod != 0 {
-			return false
-		}
-		ptr := v.ptr
-		if v.flag&flagIndir != 0 {
-			ptr = *(*unsafe.Pointer)(ptr)
-		}
+	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.UnsafePointer:
+		ptr := (unsafe.Pointer)(v.Pointer())
 		return ptr == nil
-	case reflect.Interface, reflect.Slice:
-		// Both interface and slice are nil if first word is 0.
-		// Both are always bigger than a word; assume flagIndir.
-		return *(*unsafe.Pointer)(v.ptr) == nil
+	case reflect.Map:
+		return v.Value.Len() == 0
+	//case ...:
+	//	//if v.flag&flagMethod != 0 {
+	//	//	return false
+	//	//}
+	//	ptr := (unsafe.Pointer)(v.Pointer())
+	//	//ptr := v.ptr
+	//	//if v.flag&flagIndir != 0 {
+	//	//	ptr = *(*unsafe.Pointer)(ptr)
+	//	//}
+	//	return ptr == nil
+	case reflect.Slice:
+		return v.Len() == 0
+	case reflect.Interface:
+		return v.Interface() == nil
+		//case reflect.Interface, reflect.Slice:
+		//	// Both interface and slice are nil if first word is 0.
+		//	// Both are always bigger than a word; assume flagIndir.
+		//	return *(*unsafe.Pointer)(v.ptr) == nil
 	}
 	return false
+}
+
+// IsNilSafe reports whether its argument v is nil. The argument must be
+// a chan, func, interface, map, pointer, or slice value; if it is
+// not, IsNil panics. Note that IsNil is not always equivalent to a
+// regular comparison with nil in Go. For example, if v was created
+// by calling ValueOf with an uninitialized interface variable i,
+// i==nil will be true but v.IsNil will panic as v will be the zero
+// Value.
+func IsNilSafe(v reflect.Value) bool {
+	return IsNil(v)
 }
 
 func isZeroArray(v reflect.Value) bool {

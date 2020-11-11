@@ -8,6 +8,8 @@ import (
 )
 
 func TestCloneIsZero(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("reflect set struct field", testSetStructField)
 
 	t.Run("SetZero", testSetZero)
