@@ -720,7 +720,11 @@ func (c cloner) copyFieldToFunc(ft, tt reflect.Type, fromName, toName string, fr
 func (c cloner) canCopy(from reflect.Value, to held, fromType, toType reflect.Type) (canCopy, isNilOrZeroSkipped, cannotAssignTo bool) {
 	tof := to.TargetField()
 	if from.Kind() != tof.Kind() {
-		canCopy = true
+		if fromType.AssignableTo(toType) {
+			canCopy = true
+		} else {
+			cannotAssignTo = true
+		}
 		return
 	}
 	if fromType.AssignableTo(toType) {
