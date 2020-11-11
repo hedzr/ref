@@ -1,6 +1,7 @@
 package ref
 
 import (
+	"gopkg.in/hedzr/errors.v2"
 	"math"
 	"reflect"
 	"unsafe"
@@ -26,10 +27,12 @@ func IndirectType(reflectType reflect.Type) reflect.Type {
 }
 
 func (t Type) IndirectTypeRecursive() Type {
-	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
-		t = Type{t.Elem()}
+	x, xk := t, t.Kind()
+	for xk == reflect.Ptr || xk == reflect.Slice {
+		x = Type{x.Elem()}
+		xk = x.Kind()
 	}
-	return t
+	return x
 }
 
 func IndirectTypeRecursive(reflectType reflect.Type) reflect.Type {
@@ -120,10 +123,11 @@ func IndirectValue(reflectValue reflect.Value) reflect.Value {
 }
 
 func (v Value) IndirectValueRecursive() Value {
-	for v.Kind() == reflect.Ptr {
-		v = Value{v.Elem()}
+	x := v
+	for x.Kind() == reflect.Ptr {
+		x = Value{x.Elem()}
 	}
-	return v
+	return x
 }
 
 func (v Value) PtrToIndirectValueRecursive() Value {
@@ -190,19 +194,21 @@ func (v Value) IsZero() bool {
 func (v Value) IsNil() bool {
 	k := v.Kind()
 	switch k {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.UnsafePointer:
-		//if v.flag&flagMethod != 0 {
-		//	return false
-		//}
-		if v.NumMethod() == 0 {
-			return false
-		}
+	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.UnsafePointer:
 		ptr := (unsafe.Pointer)(v.Pointer())
-		//ptr := v.ptr
-		//if v.flag&flagIndir != 0 {
-		//	ptr = *(*unsafe.Pointer)(ptr)
-		//}
 		return ptr == nil
+	case reflect.Map:
+		return v.Value.Len() == 0
+	//case ...:
+	//	//if v.flag&flagMethod != 0 {
+	//	//	return false
+	//	//}
+	//	ptr := (unsafe.Pointer)(v.Pointer())
+	//	//ptr := v.ptr
+	//	//if v.flag&flagIndir != 0 {
+	//	//	ptr = *(*unsafe.Pointer)(ptr)
+	//	//}
+	//	return ptr == nil
 	case reflect.Slice:
 		return v.Len() == 0
 	case reflect.Interface:
@@ -239,6 +245,32 @@ func (v Value) SetNil() {
 		z := reflect.Zero(v.Type())
 		v.Set(z)
 	}
+}
+
+func (v Value) GetValue() (val interface{}) {
+	if v.IsValid() {
+		if v.CanInterface() {
+			val = v.Interface()
+		} else {
+			k := v.Kind()
+			switch k {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				val = v.Int()
+			case reflect.Float32, reflect.Float64:
+				val = v.Float()
+			case reflect.Complex64, reflect.Complex128:
+				val = v.Complex()
+			default:
+				panic(errors.New("unknown kind %v", k))
+			}
+		}
+	}
+	return
+}
+
+// TryConvert calls reflect.Convert safely, without panic threw.
+func (v Value) TryConvert(t reflect.Type) (out reflect.Value, err error) {
+	return TryConvert(v.Value, t)
 }
 
 func reflectValueRecursive(obj interface{}) reflect.Value {
