@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gopkg.in/hedzr/errors.v2"
 	"reflect"
-	"unsafe"
 )
 
 // GetField returns the value of the provided obj field. obj can whether
@@ -158,12 +157,41 @@ func SetField(obj interface{}, name string, value interface{}) (err error) {
 
 	structFieldType := structFieldValue.Type()
 	val := reflect.ValueOf(value)
-	if structFieldType != val.Type() {
-		err = errors.New("provided value type didn't match obj field type")
-		return
+	//if structFieldType != val.Type() {
+	//	err = errors.New("provided value type didn't match obj field type")
+	//	return
+	//}
+	//
+	//structFieldValue.Set(val)
+
+	if val.CanInterface() {
+		i := val.Interface()
+		val = reflect.ValueOf(i)
+	}
+
+	if !val.Type().AssignableTo(structFieldType) {
+		val, err = tryConvert(val, structFieldType)
+		if err != nil {
+			return
+		}
 	}
 
 	structFieldValue.Set(val)
+	return
+}
+
+func tryConvert(v reflect.Value, t reflect.Type) (out reflect.Value, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			if e2, ok := e.(error); ok {
+				err = e2
+			} else {
+				err = errors.New("%v", e)
+			}
+		}
+	}()
+
+	out = v.Convert(t)
 	return
 }
 
@@ -173,6 +201,7 @@ func HasField(obj interface{}, name string) (has bool) {
 	return HasAnyField(obj, name)
 }
 
+// HasAnyField checks the existences of the given name list
 func HasAnyField(obj interface{}, names ...string) (has bool) {
 	if !hasAnyValidTypes(obj, reflect.Struct, reflect.Ptr) {
 		return
@@ -390,31 +419,6 @@ func tags(obj interface{}, key string, deep bool) (map[string]string, error) {
 	}
 
 	return allTags, nil
-}
-
-type Field struct {
-	Type  reflect.StructField
-	Value reflect.Value
-}
-
-func (field Field) GetUnexportedField() interface{} {
-	return reflect.NewAt(field.Value.Type(), unsafe.Pointer(field.Value.UnsafeAddr())).Elem().Interface()
-}
-
-func (field Field) SetUnexportedField(value interface{}) {
-	reflect.NewAt(field.Value.Type(), unsafe.Pointer(field.Value.UnsafeAddr())).
-		Elem().
-		Set(reflect.ValueOf(value))
-}
-
-func GetUnexportedField(field reflect.Value) interface{} {
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
-}
-
-func SetUnexportedField(field reflect.Value, value interface{}) {
-	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).
-		Elem().
-		Set(reflect.ValueOf(value))
 }
 
 func isExportableField(field reflect.StructField) bool {

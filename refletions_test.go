@@ -13,6 +13,8 @@ type testStruct struct {
 }
 
 func TestMisc(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("for TypeOf", testTypeOf)
 	t.Run("for FieldDeeper", testFieldDeeper)
 	t.Run("for FieldTagDeeper", testFieldTagDeeper)
@@ -75,6 +77,8 @@ func testFieldTagDeeper(t *testing.T) {
 }
 
 func TestGetField(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testGetFieldOnStruct)
 	t.Run("on struct pointer", testGetFieldOnStructPointer)
 	t.Run("on non-struct", testGetFieldOnNonStruct)
@@ -130,6 +134,8 @@ func testGetFieldUnexportedField(t *testing.T) {
 }
 
 func TestGetFieldKind(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testGetFieldKindOnStruct)
 	t.Run("on struct pointer", testGetFieldKindOnStructPointer)
 	t.Run("on non-struct", testGetFieldKindOnNonStruct)
@@ -184,6 +190,8 @@ func testGetFieldKindNonExistingField(t *testing.T) {
 }
 
 func TestGetFieldType(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testGetFieldTypeOnStruct)
 	t.Run("on struct pointer", testGetFieldTypeOnStructPointer)
 	t.Run("on non-struct", testGetFieldTypeOnNonStruct)
@@ -238,6 +246,8 @@ func testGetFieldTypeNonExistingField(t *testing.T) {
 }
 
 func TestGetFieldTag(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testGetFieldTagOnStruct)
 	t.Run("on struct pointer", testGetFieldTagOnStructPointer)
 	t.Run("on non-struct", testGetFieldTagOnNonStruct)
@@ -294,6 +304,8 @@ func testGetFieldTagUnexportedField(t *testing.T) {
 }
 
 func TestSetField(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct with valid value type", testSetFieldOnStructWithValidValueType)
 	t.Run("on non-existing field", testSetFieldNonExistingField)
 	t.Run("on invalid value type", testSetFieldInvalidValueType)
@@ -344,6 +356,8 @@ func testSetFieldNonExportedField(t *testing.T) {
 }
 
 func TestFields(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testFieldsOnStruct)
 	t.Run("on struct pointer", testFieldsOnStructPointer)
 	t.Run("on non-struct", testFieldsOnNonStruct)
@@ -392,6 +406,8 @@ func testFieldsWithNonExportedFields(t *testing.T) {
 }
 
 func TestHasField(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct with existing field", testHasFieldOnStructWithExistingField)
 	t.Run("on struct pointer with existing field", testHasFieldOnStructPointerWithExistingField)
 	t.Run("on non-existing field", testHasFieldNonExistingField)
@@ -448,6 +464,8 @@ func testHasFieldUnexportedField(t *testing.T) {
 }
 
 func TestTags(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testTagsOnStruct)
 	t.Run("on struct pointer", testTagsOnStructPointer)
 	t.Run("on non-struct", testTagsOnNonStruct)
@@ -489,6 +507,8 @@ func testTagsOnNonStruct(t *testing.T) {
 }
 
 func TestItems(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("on struct", testItemsOnStruct)
 	t.Run("on struct pointer", testItemsOnStructPointer)
 	t.Run("on non-struct", testItemsOnNonStruct)
@@ -530,6 +550,8 @@ func testItemsOnNonStruct(t *testing.T) {
 }
 
 func TestDeep(t *testing.T) {
+	defer initLogger(t)()
+
 	t.Run("items deep", testItemsDeep)
 	t.Run("tags deep", testTagsDeep)
 	t.Run("fields deep", testFieldsDeep)
