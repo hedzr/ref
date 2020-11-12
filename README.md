@@ -15,8 +15,18 @@
 
 `ref` provides the higher level wraps on golang reflect library.
 
-`ref` is inspired by [oleiade/reflections](https://github.com/oleiade/reflections), which has no activities in long time.
+`ref` is inspired by [oleiade/reflections](https://github.com/oleiade/reflections), which has no more activities for a long time.
 
+## Preview Version (WIP)
+
+`ref` is still a preview version at this time.
+
+## Feature
+
+- reflect helpers: `GetField`, `GetFields`, `GetTags`, ...
+- pretty print: `Dump`, `DumpEx`, ...
+- deepclone: `Clone`, `DefaultCloner.Copy(from, to)`
+- deepmerge: `NewMerger(source).MergeTo(&target)`
 
 ## LICENSE
 
