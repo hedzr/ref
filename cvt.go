@@ -9,6 +9,10 @@ import (
 
 // TryConvert calls reflect.Convert safely, without panic threw.
 func TryConvert(v reflect.Value, t reflect.Type) (out reflect.Value, err error) {
+	return tryConvert(v, t)
+}
+
+func tryConvert(v reflect.Value, t reflect.Type) (out reflect.Value, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if e2, ok := e.(error); ok {
