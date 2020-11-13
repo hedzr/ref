@@ -138,7 +138,7 @@ func testDefaultClone_copyStruct(t *testing.T) {
 	// Clone(&employee, &user, "Shit", "Memo", "Name")
 
 	user = User{Name: "Faked", Nickname: "user", Age: 18, FakeAge: &fakeAge,
-		Role: "User", Notes: []string{"hello world", "welcome"}, flags: []byte{'x'},
+		Role: "User", Notes: []string{"hello world", "welcome"}, Flags: []byte{'x'},
 		Retry: 3, Times: 17, RetryU: 23, TimesU: 21, FxReal: 31, FxTime: 37,
 		FxTimeU: 13, UxA: 11, UxB: 0, Born: &born, BornU: &bornU,
 		Ro: []int{1, 2, 3}, Sptr: &sz, Bool1: true, // Feat: []byte(sz),

@@ -41,7 +41,7 @@ var (
 		UxB:      6,
 		FakeAge:  &tomAgeI32,
 		Notes:    []string{"fds", "kjrtl", "re34"},
-		flags:    []byte("memento"),
+		Flags:    []byte("memento"),
 		Born:     &tomBornI,
 		BornU:    &tomBornU,
 		Ro:       []int{56, 78, 90, 12},
@@ -94,7 +94,7 @@ type User struct {
 	UxB      int
 	FakeAge  *int32
 	Notes    []string
-	flags    []byte
+	Flags    []byte
 	Born     *int
 	BornU    *uint
 	Ro       []int
