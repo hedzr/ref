@@ -180,21 +180,6 @@ func SetField(obj interface{}, name string, value interface{}) (err error) {
 	return
 }
 
-func tryConvert(v reflect.Value, t reflect.Type) (out reflect.Value, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			if e2, ok := e.(error); ok {
-				err = e2
-			} else {
-				err = errors.New("%v", e)
-			}
-		}
-	}()
-
-	out = v.Convert(t)
-	return
-}
-
 // HasField checks if the provided field name is part of a struct. obj can whether
 // be a structure or pointer to structure.
 func HasField(obj interface{}, name string) (has bool) {
@@ -432,8 +417,10 @@ func isExportableMethod(mtd reflect.Method) bool {
 }
 
 func hasAnyValidTypes(obj interface{}, types ...reflect.Kind) bool {
+	ov := ValueOf(obj)
+	ovk := ov.Kind()
 	for _, t := range types {
-		if reflect.TypeOf(obj).Kind() == t {
+		if ovk == t {
 			return true
 		}
 	}
@@ -441,8 +428,10 @@ func hasAnyValidTypes(obj interface{}, types ...reflect.Kind) bool {
 }
 
 func hasAllValidTypes(obj interface{}, types ...reflect.Kind) bool {
+	ov := ValueOf(obj)
+	ovk := ov.Kind()
 	for _, t := range types {
-		if reflect.TypeOf(obj).Kind() != t {
+		if ovk != t {
 			return false
 		}
 	}
