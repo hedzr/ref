@@ -7,41 +7,6 @@ import (
 	"unsafe"
 )
 
-// Type is a struct wrapped on reflect.Type
-type Type struct {
-	reflect.Type
-}
-
-func (t Type) IndirectType() Type {
-	if t.Kind() == reflect.Ptr {
-		return Type{t.Elem()}
-	}
-	return t
-}
-
-func IndirectType(reflectType reflect.Type) reflect.Type {
-	if reflectType.Kind() == reflect.Ptr {
-		return reflectType.Elem()
-	}
-	return reflectType
-}
-
-func (t Type) IndirectTypeRecursive() Type {
-	x, xk := t, t.Kind()
-	for xk == reflect.Ptr || xk == reflect.Slice {
-		x = Type{x.Elem()}
-		xk = x.Kind()
-	}
-	return x
-}
-
-func IndirectTypeRecursive(reflectType reflect.Type) reflect.Type {
-	for reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
-		reflectType = reflectType.Elem()
-	}
-	return reflectType
-}
-
 // Value is a struct wrapped on reflect.Value
 type Value struct {
 	reflect.Value
@@ -64,12 +29,33 @@ func ValueOf(obj interface{}) Value {
 	if v, ok := obj.(reflect.Value); ok {
 		return Value{v}
 	}
+	if v, ok := obj.(Value); ok {
+		return v
+	}
 	return Value{reflect.ValueOf(obj)}
 }
 
 func isKindInt(k reflect.Kind) bool {
 	switch k {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	}
+	return false
+}
+
+func isKindUint(k reflect.Kind) bool {
+	switch k {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true
+	}
+	return false
+}
+
+func isKindInteger(k reflect.Kind) bool {
+	switch k {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return true
 	}
 	return false
@@ -95,6 +81,8 @@ func isStruct(obj interface{}) bool  { return reflect.TypeOf(obj).Kind() == refl
 func isPointer(obj interface{}) bool { return reflect.TypeOf(obj).Kind() == reflect.Ptr }
 
 func (v Value) IsKindInt(k reflect.Kind) bool     { return isKindInt(k) }
+func (v Value) IsKindUint(k reflect.Kind) bool    { return isKindUint(k) }
+func (v Value) IsKindInteger(k reflect.Kind) bool { return isKindInteger(k) }
 func (v Value) IsKindFloat(k reflect.Kind) bool   { return isKindFloat(k) }
 func (v Value) IsKindComplex(k reflect.Kind) bool { return isKindComplex(k) }
 func (v Value) IsKindStruct(k reflect.Kind) bool  { return k == reflect.Struct }
@@ -254,8 +242,12 @@ func (v Value) GetValue() (val interface{}) {
 		} else {
 			k := v.Kind()
 			switch k {
+			case reflect.Bool:
+				val = v.Bool()
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				val = v.Int()
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				val = v.Uint()
 			case reflect.Float32, reflect.Float64:
 				val = v.Float()
 			case reflect.Complex64, reflect.Complex128:
