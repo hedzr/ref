@@ -18,7 +18,7 @@ go 1.13
 
 // replace github.com/hedzr/go-ringbuf => ../go-ringbuf
 
-replace github.com/hedzr/assert => ../assert
+//replace github.com/hedzr/assert => ../assert
 
 require (
 	github.com/hedzr/assert v0.1.3
